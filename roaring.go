@@ -1523,3 +1523,50 @@ func (rb *Bitmap) Stats() Statistics {
 	}
 	return stats
 }
+
+/**********************************************************************/
+// customize for LinDB
+/**********************************************************************/
+
+// GetHighKeys returns the all high keys
+func (rb *Bitmap) GetHighKeys() []uint16 {
+	return rb.highlowcontainer.keys
+}
+
+// GetContainerIndex returns the low container's index in the high container, if not exist returns -1, else returns the index
+func (rb *Bitmap) GetContainerIndex(highKey uint16) int {
+	return rb.highlowcontainer.getIndex(highKey)
+}
+
+// GetContainer gets the low container by high key, if not exist returns nil, else return the wrapper container
+func (rb *Bitmap) GetContainer(highKey uint16) Container {
+	container := rb.highlowcontainer.getContainer(highKey)
+	if container == nil {
+		return nil
+	}
+	return &containerWrapper{container: container}
+}
+
+// GetContainerAtIndex gets the low container by index, if index < -1 returns nil, else returns the wrapper container
+func (rb *Bitmap) GetContainerAtIndex(index int) Container {
+	if index < 0 {
+		return nil
+	}
+	container := rb.highlowcontainer.getContainerAtIndex(index)
+	return &containerWrapper{container: container}
+}
+
+// ContainsAndRank returns the high/low index if key container
+func (rb *Bitmap) ContainsAndRank(key uint32) (found bool, highIdx int, lowInx int) {
+	hb := highbits(key)
+	highIdx = rb.highlowcontainer.getIndex(hb)
+	if highIdx < 0 {
+		return false, highIdx, -1
+	}
+	c := rb.highlowcontainer.getContainerAtIndex(highIdx)
+	lb := lowbits(key)
+	if !c.contains(lb) {
+		return false, highIdx, c.rank(lb)
+	}
+	return true, highIdx, c.rank(lb)
+}
